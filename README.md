@@ -19,3 +19,10 @@ git add .
 git commit -m "Initial setup: Folders, dummy test, README"
 git push origin main
 
+## 🚀 Quick Start
+```bash
+# Run all tests
+docker run qa-tests
+
+# Get HTML report
+mkdir -p reports && docker run -v $(pwd)/reports:/app/reports qa-tests
