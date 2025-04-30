@@ -11,25 +11,13 @@ RUN apt-get update && apt-get install -y \
     libfontconfig1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Verify ChromeDriver installation and set up the path
+# Verify ChromeDriver installation
 RUN which chromedriver && \
-    chromedriver --version || true && \
-    find /usr -name "chromedriver" | head -1
+    chromedriver --version || echo "ChromeDriver version check failed"
 
-# Make sure we use the correct ChromeDriver path
-RUN CHROMEDRIVER_PATH=$(find /usr -name "chromedriver" | head -1) && \
-    if [ -n "$CHROMEDRIVER_PATH" ]; then \
-        echo "Found ChromeDriver at $CHROMEDRIVER_PATH"; \
-        ln -sf $CHROMEDRIVER_PATH /usr/bin/chromedriver; \
-        chmod +x /usr/bin/chromedriver; \
-    else \
-        echo "ChromeDriver not found in /usr"; \
-        exit 1; \
-    fi
-
-# Verify Chromium
+# Verify Chromium installation
 RUN which chromium && \
-    chromium --version || true
+    chromium --version || echo "Chromium version check failed"
 
 WORKDIR /app
 COPY requirements.txt .
@@ -37,9 +25,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Print debug info when the container starts
+# Run tests with verbose output
 CMD echo "ChromeDriver Path: $(which chromedriver)" && \
     echo "ChromeDriver Version: $(chromedriver --version || echo 'Cannot get version')" && \
     echo "Chromium Path: $(which chromium)" && \
     echo "Chromium Version: $(chromium --version || echo 'Cannot get version')" && \
-    pytest tests/scripts/ --html=report.html
+    pytest tests/scripts/ --html=report.html -v

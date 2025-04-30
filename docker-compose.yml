@@ -1,0 +1,41 @@
+version: '3'
+
+services:
+  # Test web application
+  webapp:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./test-app:/usr/share/nginx/html
+
+  # Test runner
+  qa-tests:
+    build: .
+    depends_on:
+      - webapp
+    environment:
+      - TEST_URL=http://webapp
+    volumes:
+      - ./reports:/app/reports
+
+  # Prometheus for monitoring
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+
+  # Grafana for dashboards
+  grafana:
+    image: grafana/grafana:10.0.3
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
