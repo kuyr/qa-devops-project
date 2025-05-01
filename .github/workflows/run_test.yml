@@ -51,7 +51,7 @@ jobs:
         docker cp test-container:/app/report.html ./report.html || echo "No report generated"
     
     - name: Upload test report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-report
         path: |
