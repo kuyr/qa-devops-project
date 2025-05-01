@@ -5,7 +5,7 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
 
 jobs:
   test:
@@ -13,51 +13,55 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
     
-    - name: Install Docker Compose (if needed)
+    - name: Verify test app directory
       run: |
-        docker compose version || sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        sudo chmod +x /usr/local/bin/docker-compose
-    
-    - name: Create test app directory
-      run: mkdir -p test-app
-      
-    - name: Copy test app files
-      run: |
-        if [ -f "test-app/index.html" ]; then
-          echo "Test app already exists"
+        if [ -d "test-app" ]; then
+          echo "Test application directory exists"
+          ls -la test-app/
         else
-          echo "Creating test app"
-          cp -r $(find . -name "test-app-html" | head -1) test-app/index.html || echo "Using default test app"
+          echo "Error: Test application directory not found"
+          exit 1
         fi
     
-    - name: Start test environment
+    - name: Create docker network
+      run: docker network create qa-test-network
+    
+    - name: Start web application
       run: |
-        docker compose up -d webapp
-        
-    - name: Build and run tests
+        docker run -d --name webapp --network qa-test-network -p 8080:80 -v ${{ github.workspace }}/test-app:/usr/share/nginx/html nginx:alpine
+        echo "Web application started at http://localhost:8080"
+    
+    - name: Build test image
       run: |
         docker build -t qa-tests .
-        docker run --name test-container --network=$(docker network ls --filter name=${GITHUB_REPOSITORY_OWNER}-qa-devops -q) -e TEST_URL=http://webapp qa-tests
-      
+        echo "Test image built successfully"
+    
+    - name: Run tests
+      run: |
+        docker run --name test-container --network qa-test-network -e TEST_URL=http://webapp -v ${{ github.workspace }}/reports:/app/reports qa-tests
+      continue-on-error: true
+    
     - name: Copy test reports
-      if: always()
       run: |
         docker cp test-container:/app/report.html ./report.html || echo "No report generated"
-        
+    
     - name: Upload test report
-      uses: actions/upload-artifact@v4
-      if: always()
+      uses: actions/upload-artifact@v3
       with:
         name: test-report
-        path: ./report.html
+        path: |
+          ./report.html
+          ./reports/
+        if-no-files-found: warn
     
     - name: Clean up
       if: always()
       run: |
-        docker rm test-container || true
-        docker compose down
+        docker rm -f test-container || true
+        docker rm -f webapp || true
+        docker network rm qa-test-network || true

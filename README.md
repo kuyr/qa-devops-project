@@ -25,6 +25,10 @@ qa-devops-project/
 │
 ├── test-app/                       # Test application
 │   └── index.html                  # Web application for testing
+│   ├── css/
+│   │   └── styles.css
+│   └── js/
+│       └── app.js
 │
 ├── prometheus/                     # Prometheus configuration
 │   └── prometheus.yml              # Prometheus config file
