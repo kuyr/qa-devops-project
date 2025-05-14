@@ -22,12 +22,17 @@ RUN which chromium && \
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN mkdir -p /app/reports
 
 COPY . .
+
+ENV PYTHONPATH=/app
 
 # Run tests with verbose output
 CMD echo "ChromeDriver Path: $(which chromedriver)" && \
     echo "ChromeDriver Version: $(chromedriver --version || echo 'Cannot get version')" && \
     echo "Chromium Path: $(which chromium)" && \
     echo "Chromium Version: $(chromium --version || echo 'Cannot get version')" && \
-    pytest tests/scripts/ --html=report.html -v
+    python -m http.server 9464 &  && \
+    tail -f /dev/null
+    # pytest tests/scripts/ --html=report.html -v

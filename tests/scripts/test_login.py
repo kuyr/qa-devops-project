@@ -1,12 +1,14 @@
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+# File: tests/scripts/test_login_pom.py
 import pytest
 import os
 import logging
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from ..pages.login_page import LoginPage
+from ..pages.base_page import BasePage
+from ..pages.registration_page import RegistrationPage
+
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -38,109 +40,79 @@ def chrome_driver():
         if driver:
             driver.quit()
 
-def test_github_homepage(chrome_driver):
-    """Test that GitHub homepage loads correctly."""
-    logger.info("Starting GitHub homepage test")
-    chrome_driver.get("https://github.com")
-    logger.info(f"Page title: {chrome_driver.title}")
-    assert "GitHub" in chrome_driver.title
-
-def test_python_org(chrome_driver):
-    """Test that Python.org loads correctly."""
-    logger.info("Starting Python.org test")
-    chrome_driver.get("https://www.python.org")
-    logger.info(f"Page title: {chrome_driver.title}")
-    assert "Python" in chrome_driver.title
-
+@pytest.mark.smoke
 def test_login_success(chrome_driver):
-    """Test successful login on our test application."""
+    """Test successful login using Page Object Model"""
+    login_page = LoginPage(chrome_driver)
+    
     # Get the URL from environment variable or use default
     test_url = os.getenv("TEST_URL", "http://webapp")
-    logger.info(f"Starting login test on {test_url}")
     
-    chrome_driver.get(f"{test_url}")
-    logger.info(f"Page title: {chrome_driver.title}")
+    # Perform login
+    login_page.navigate_to(test_url).login("testuser", "password")
     
-    # Fill in login form with correct credentials
-    username = chrome_driver.find_element(By.ID, "username")
-    password = chrome_driver.find_element(By.ID, "password")
-    login_button = chrome_driver.find_element(By.ID, "login-button")
+    # Verify message
+    message_text, message_class = login_page.get_message()
     
-    username.send_keys("testuser")
-    password.send_keys("password")
-    login_button.click()
-    
-    # Wait for success message to appear
-    WebDriverWait(chrome_driver, 10).until(
-        EC.visibility_of_element_located((By.ID, "message"))
-    )
-    
-    message = chrome_driver.find_element(By.ID, "message")
-    logger.info(f"Login message: {message.text}")
-    
-    # Verify message is success
-    assert "Login successful" in message.text
-    assert "success" in message.get_attribute("class")
+    assert "Login successful" in message_text
+    assert "success" in message_class
 
+@pytest.mark.smoke
 def test_login_failure(chrome_driver):
-    """Test failed login on our test application."""
+    """Test failed login using Page Object Model"""
+    login_page = LoginPage(chrome_driver)
+    
     # Get the URL from environment variable or use default
     test_url = os.getenv("TEST_URL", "http://webapp")
-    logger.info(f"Starting failed login test on {test_url}")
     
-    chrome_driver.get(f"{test_url}")
+    # Perform login with wrong credentials
+    login_page.navigate_to(test_url).login("wronguser", "wrongpass")
     
-    # Fill in login form with incorrect credentials
-    username = chrome_driver.find_element(By.ID, "username")
-    password = chrome_driver.find_element(By.ID, "password")
-    login_button = chrome_driver.find_element(By.ID, "login-button")
+    # Verify message
+    message_text, message_class = login_page.get_message()
     
-    username.send_keys("wronguser")
-    password.send_keys("wrongpass")
-    login_button.click()
-    
-    # Wait for error message to appear
-    WebDriverWait(chrome_driver, 10).until(
-        EC.visibility_of_element_located((By.ID, "message"))
-    )
-    
-    message = chrome_driver.find_element(By.ID, "message")
-    logger.info(f"Login message: {message.text}")
-    
-    # Verify message is error
-    assert "Invalid username or password" in message.text
-    assert "error" in message.get_attribute("class")
+    assert "Invalid username or password" in message_text
+    assert "error" in message_class
 
-def test_registration_form(chrome_driver):
-    """Test the registration form on our test application."""
+@pytest.mark.regression
+def test_registration(chrome_driver):
+    """Test registration form using Page Object Model"""
+    registration_page = RegistrationPage(chrome_driver)
+    
     # Get the URL from environment variable or use default
     test_url = os.getenv("TEST_URL", "http://webapp")
-    logger.info(f"Starting registration test on {test_url}")
     
-    chrome_driver.get(f"{test_url}")
-    
-    # Fill in registration form
-    username = chrome_driver.find_element(By.ID, "reg-username")
-    email = chrome_driver.find_element(By.ID, "email")
-    password = chrome_driver.find_element(By.ID, "reg-password")
-    confirm_password = chrome_driver.find_element(By.ID, "confirm-password")
-    register_button = chrome_driver.find_element(By.ID, "register-button")
-    
-    username.send_keys("newuser")
-    email.send_keys("newuser@example.com")
-    password.send_keys("securepassword")
-    confirm_password.send_keys("securepassword")
-    register_button.click()
-    
-    # Wait for success message to appear
-    WebDriverWait(chrome_driver, 10).until(
-        EC.visibility_of_element_located((By.ID, "reg-message"))
+    # Perform registration
+    registration_page.navigate_to(test_url).register(
+        username="newuser",
+        email="newuser@example.com",
+        password="securepassword",
+        confirm_password="securepassword"
     )
     
-    message = chrome_driver.find_element(By.ID, "reg-message")
-    logger.info(f"Registration message: {message.text}")
+    # Verify message
+    message_text, message_class = registration_page.get_message()
     
-    # Verify message is success
-    assert "Registration successful" in message.text
-    assert "newuser" in message.text
-    assert "success" in message.get_attribute("class")
+    assert "Registration successful" in message_text
+    assert "newuser" in message_text
+    assert "success" in message_class
+
+@pytest.mark.parametrize("username,password,expected_message,expected_class", [
+    ("testuser", "password", "Login successful", "success"),
+    ("wronguser", "wrongpass", "Invalid username or password", "error"),
+    (" ", " ", "Invalid username or password", "error"),
+])
+def test_login_scenarios(chrome_driver, username, password, expected_message, expected_class):
+    """Test multiple login scenarios using parametrization"""
+    login_page = LoginPage(chrome_driver)
+    
+    # Get the URL from environment variable or use default
+    test_url = os.getenv("TEST_URL", "http://webapp")
+    
+    # Perform login
+    login_page.navigate_to(test_url).login(username, password)
+        # Verify message
+    message_text, message_class = login_page.get_message()
+    
+    assert expected_message in message_text
+    assert expected_class in message_class

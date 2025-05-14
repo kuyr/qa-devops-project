@@ -1,0 +1,31 @@
+# File: prometheus/rules.yml
+
+groups:
+- name: qa_alerts
+  rules:
+  - alert: HighTestFailureRate
+    expr: (qa_tests_failed_total / qa_tests_total) > 0.2
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High test failure rate"
+      description: "Test failure rate is {{ $value | humanizePercentage }} which is above 20%"
+      
+  - alert: NoTestsRunning
+    expr: rate(qa_tests_total[5m]) == 0
+    for: 5m
+    labels:
+      severity: info
+    annotations:
+      summary: "No tests have run recently"
+      description: "No test executions detected in the last 5 minutes"
+      
+  - alert: TestExecutionSlow
+    expr: qa_test_duration_seconds > 5
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Tests running slowly"
+      description: "Test execution time is {{ $value }} seconds"

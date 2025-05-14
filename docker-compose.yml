@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   # Test web application
   webapp:
@@ -8,6 +6,9 @@ services:
       - "8080:80"
     volumes:
       - ./test-app:/usr/share/nginx/html
+    networks:
+      - qa-network
+
 
   # Test runner
   qa-tests:
@@ -18,6 +19,15 @@ services:
       - TEST_URL=http://webapp
     volumes:
       - ./reports:/app/reports
+    # This command starts metrics server AND keeps container running
+    command: |
+      sh -c "
+      python metrics_exporter.py &
+      echo 'Metrics server started. Container ready for testing.'
+      tail -f /dev/null
+      "
+    networks:
+      - qa-network
 
   # Prometheus for monitoring
   prometheus:
@@ -26,8 +36,11 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus:/etc/prometheus
+      - ./prometheus/rules.yml:/etc/prometheus/rules.yml
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - qa-network
 
   # Grafana for dashboards
   grafana:
@@ -39,3 +52,20 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     depends_on:
       - prometheus
+    networks:
+      - qa-network
+
+  metrics-exporter:
+    image: python:3.10-slim
+    volumes:
+      - ./metrics_exporter.py:/app/metrics_exporter.py
+    working_dir: /app
+    command: ["bash", "-c", "pip install prometheus-client && python metrics_exporter.py"]
+    ports:
+      - "9464:9464"
+    networks:
+      - qa-network
+
+networks:
+  qa-network:
+    driver: bridge
